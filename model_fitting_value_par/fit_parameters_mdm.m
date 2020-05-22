@@ -7,19 +7,30 @@
 clearvars
 close all
 
-% poolobj = parpool('local', 8);
+poolobj = parpool('local', 9);
 
 %% Define conditions
-fitparwave = 'Behavior data fitpar_09300219'; % folder to save all the fitpar data structures
+fitparwave = 'Behavior data fitpar_052220'; % folder to save all the fitpar data structures
 fitbywhat = 'value'; % what to use as values 'value', 'rating', 'arbitrary'(0,1,2,3,4)
 model = 'ambigSVPar'; % which utility function 'ambigNriskValPar', 'ambigSVPar'
 includeAmbig = true;
 search = 'grid'; % 'grid', 'single'
 
 %% set up fitting parameters
+
+lb_num = 1e-2;
+ub_num = 100;
+
+% lower and upper bound of fitting parameters
+lb = [-100 -10 lb_num lb_num lb_num lb_num];
+ub = [100 10 ub_num ub_num ub_num ub_num];
+
 % value start point
 value_start = 50;
-grid_step = 0.5;
+
+% grid search
+grid_step = 1;
+val_step = 30;
 
 if strcmp(search, 'grid')
     % grid search
@@ -27,18 +38,23 @@ if strcmp(search, 'grid')
     slopeRange = -4:grid_step:1;
     bRange = -2:grid_step:2;
     aRange = 0:grid_step:4;
-    val1Range = value_start;
-    val2Range = value_start;
-    val3Range = value_start;
-    val4Range = value_start;
+    val1Range = 0:val_step:ub_num;
+    val2Range = 0:val_step:ub_num;
+    val3Range = 0:val_step:ub_num;
+    val4Range = 0:val_step:ub_num;
+    
+%     val1Range = lb_num + rand(1,3) .* (ub_num - lb_num);
+%     val2Range = lb_num + rand(1,3) .* (ub_num - lb_num);
+%     val3Range = lb_num + rand(1,3) .* (ub_num - lb_num);
+%     val4Range = lb_num + rand(1,3) .* (ub_num - lb_num);
     
     if strcmp(model,'ambigNriskValPar')
-        [b1, b2, b3, b4, b5, b6, b7] = ndgrid(slopeRange, bRange, aRange, val1Range, val2Range, val3Range, val4Range);
-        % all posibile combinatinos of three parameters
+        [b1, b2, b3, b4, b5, b6, b7] = ndgrid(slopeRange, bRange, aRange, val1Range(2:end), val2Range(2:end), val3Range(2:end), val4Range(2:end));
+        % all posibile combinatinos of parameters
         b0 = [b1(:) b2(:) b3(:) b4(:) b5(:) b6(:) b7(:)];
     elseif strcmp(model, 'ambigSVPar')
-        [b1, b2, b3, b4, b5, b6] = ndgrid(slopeRange, bRange, val1Range, val2Range, val3Range, val4Range);
-        % all posibile combinatinos of three parameters
+        [b1, b2, b3, b4, b5, b6] = ndgrid(slopeRange, bRange, val1Range(2:end), val2Range(2:end), val3Range(2:end), val4Range(2:end));
+        % all posibile combinatinos of parameters
         b0 = [b1(:) b2(:) b3(:) b4(:) b5(:) b6(:)];
     end
 elseif strcmp(search,'single')
@@ -61,7 +77,7 @@ fixed_valueP = 5; % Value of fixed reward
 fixed_prob = 1;   % prb of fixed reward 
 
 %% Set up loading & subject selection
-root = 'D:\Ruonan\Projects in the lab\MDM Project\Medical Decision Making Imaging\MDM_imaging\Behavioral Analysis';
+root = 'E:\Ruonan\Projects in the lab\MDM Project\Medical Decision Making Imaging\MDM_imaging\Behavioral Analysis';
 data_path = fullfile(root, 'PTB Behavior Log/'); % root of folders is sufficient
 rating_filename = fullfile(root, 'Behavior Analysis/MDM_Rating.csv');
 fitpar_out_path = fullfile(root, 'Behavior fitpar files',fitparwave);
@@ -178,6 +194,8 @@ parfor subj_idx = 1:length(subjects)
         ambigs', ...
         model, ...
         b0, ...
+        lb,...
+        ub,...
         base, ...
         vals);    
     
@@ -356,4 +374,4 @@ end
 
 toc 
 
-% delete(poolobj)
+delete(poolobj)
