@@ -1,4 +1,4 @@
-function [info,p] = fit_ambigNriskValPar_model(choice,vF,vA,pF,pA,AL,model,b0,base,vals)
+function [info,p] = fit_ambigNriskValPar_model(choice,vF,vA,pF,pA,AL,model,b0,lb,ub,base,vals)
 % FIT_AMBIGNRISK_MODEL      Fit a variety of probabilistic ambiguity models
 % 
 %
@@ -79,7 +79,7 @@ nobs = length(choice);
 
 for i = 1 : size(b0,1)
     
-    b00 = b0(i,:)'; % search starting point
+    b00 = b0(i,:); % search starting point
     % Fit model, attempting to use FMINUNC first, then falling back to FMINSEARCH
 %     if exist('fminunc','file')
 %        try
@@ -130,15 +130,7 @@ for i = 1 : size(b0,1)
 %     mu.vals = vals;
  
     
-    if strcmp(model, 'ambigNriskValPar')
-        lb = [-10 -10 0 0 0 0 0];
-        ub = [10 10 10 50 50 50 50];
-    elseif strcmp(model, 'ambigSVPar')
-        lb = [-10 -10 0 0 0 0];
-        ub = [10 10 50 50 50 50];        
-    end
-    
-    [b, negLL, exitflag, convg] = bads(@local_negLL,b00',lb,ub,[],[],[],options,choice,vF,vA,pF,pA,AL,model,base,vals);
+    [b, negLL, exitflag, output_struct] = bads(@local_negLL,b00,lb,ub,[],[],[],options,choice,vF,vA,pF,pA,AL,model,base,vals);
 %     [b, negLL, exitflag, convg] = bads(@local_negLL,b00',[],[],[],[],[],options,mu);
 
 % Unrestricted log-likelihood
@@ -149,7 +141,7 @@ for i = 1 : size(b0,1)
 
     if i == 1 || (i ~=1 && LL > info.LL)% first iteration; and if a later iteration renders larger likelihood, replace info
         % Choice probabilities (for VARIED)
-        p = choice_prob_ambigNriskValPar(base,vF,vA,pF,pA,AL,b,model,vals);
+        p = choice_prob_ambigNriskValPar(base,vF,vA,pF,pA,AL,b',model,vals);
 
         % Restricted log-likelihood
         LL0 = sum((choice==1).*log(0.5) + (1 - (choice==1)).*log(0.5)); % assuming no predictors, the chance of choosing and not choosing the lottery are both 50%
@@ -167,7 +159,8 @@ for i = 1 : size(b0,1)
 %         info.optimizer = optimizer;
         info.exitflag = exitflag;
         info.b = b;
-
+        info.output_struct = output_struct;
+        
         try
             info.se = se;
             info.ci = [b-se*norminv(1-thresh/2) b+se*norminv(1-thresh/2)]; % Wald confidence
