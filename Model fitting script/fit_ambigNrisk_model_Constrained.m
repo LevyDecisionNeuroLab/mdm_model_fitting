@@ -103,9 +103,14 @@ for i = 1 : size(b0,1)
 
     OPTIONS = optimset('Display','off','TolCon',1e-6,'TolFun',1e-5,'TolX',1e-5,...
         'DiffMinChange',1e-4,'Maxiter',100000,'MaxFunEvals',20000);
-    [b,negLL,exitflag,convg] = fmincon(@local_negLL,b00,[],[],[],[],[-inf -3.67 .0894],[inf 4 4.34],[],OPTIONS,choice,vF,vA,pF,pA,AL,model,base);
+    [b,negLL,exitflag,convg] = fmincon(@local_negLL,b00,[],[],[],[],[-inf -3.4952 0.1787],[inf 4.0944 2.9495],[],OPTIONS,choice,vF,vA,pF,pA,AL,model,base);
     %X = fmincon(fun,x0,A,B,Aeq,Beq,lb,ub,nonlcon,Opts,a,b)
 
+    if exitflag == 1
+        fprintf('Optimization SUCSESSFUL, #iterations = %g\n',convg.iterations);
+    else
+        fprintf('Optimization OTHERWISE, #iterations = %g\n',convg.iterations);
+    end
 
     if i == 1 || (i ~=1 && LL > info.LL)% first iteration; and if a later iteration renders larger likelihood, replace the output
 

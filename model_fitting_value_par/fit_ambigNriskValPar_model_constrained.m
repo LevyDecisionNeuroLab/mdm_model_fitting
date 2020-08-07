@@ -73,7 +73,7 @@ nobs = length(choice);
 
 for i = 1 : size(b0,1)
         
-    b00 = b0(i,:)'; % search starting point
+    b00 = b0(i,:); % search starting point
    
     optimizer = 'fmincon';
         
@@ -97,12 +97,12 @@ for i = 1 : size(b0,1)
     % upper bounds
     ub = [];
     
-    [b,negLL,exitflag,convg] = fmincon(@local_negLL,b00,ineq_mat,ineq,[],[],lb,ub,[],OPTIONS,choice,vF,vA,pF,pA,AL,model,base,vals);
+    [b,negLL,exitflag,output_struct] = fmincon(@local_negLL,b00,ineq_mat,ineq,[],[],lb,ub,[],OPTIONS,choice,vF,vA,pF,pA,AL,model,base,vals);
     %X = fmincon(fun,x0,A,B,Aeq,Beq,lb,ub,nonlcon,Opts,a,b)
     
     % using bads
     nonbcon = 
-    [b,negLL,exitflag,convg] = bads(@local_negLL,b00,OPTIONS,choice,vF,vA,pF,pA,AL,model,base,vals, nonbcon);
+    [b,negLL,exitflag,output_struct] = bads(@local_negLL,b00,OPTIONS,choice,vF,vA,pF,pA,AL,model,base,vals, nonbcon);
     
     % Unrestricted log-likelihood
     LL = -negLL;
@@ -130,6 +130,7 @@ for i = 1 : size(b0,1)
         info.optimizer = optimizer;
         info.exitflag = exitflag;
         info.b = b;
+        info.output_struct = output_struct;
 
         try
             info.se = se;

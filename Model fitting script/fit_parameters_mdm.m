@@ -7,10 +7,10 @@
 clearvars
 close all
 
-% poolobj = parpool('local', 10);
+% poolobj = parpool('local', 8);
 
 %% Define conditions
-fitparwave = 'Behavior data fitpar_08220219'; % folder to save all the fitpar data structures
+fitparwave = 'Behavior data fitpar_01042020'; % folder to save all the fitpar data structures
 fitbywhat = 'value'; % what to use as values 'value', 'rating', 'arbitrary'(0,1,2,3,4)
 model = 'ambigNrisk'; % which utility function
 includeAmbig = true;
@@ -53,9 +53,9 @@ end
 
 
 %% Set up loading & subject selection
-root = 'D:\Ruonan\Projects in the lab\MDM Project\Medical Decision Making Imaging\MDM_imaging\Behavioral Analysis';
+root = 'E:\Ruonan\Projects in the lab\MDM Project\Medical Decision Making Imaging\MDM_imaging\Behavioral Analysis';
 data_path = fullfile(root, 'PTB Behavior Log/'); % root of folders is sufficient
-rating_filename = fullfile(root, 'Behavior Analysis/MDM_Rating.csv');
+rating_filename = fullfile(root, 'Behavior Analysis/MDM_Rating_for_fitting.csv');
 fitpar_out_path = fullfile(root, 'Behavior fitpar files',fitparwave);
 
 % if folder does not exist, create folder
@@ -71,6 +71,8 @@ exclude = [2581]; % TEMPORARY: subjects incomplete data (that the script is not 
 subjects = subjects(~ismember(subjects, exclude));
 % subjects = [2654 2655 2656 2657 2658 2659 2660 2661 2662 2663 2664 2665 2666];
 % subjects = [2663 2664 2665 2666];
+subjects = [2656, 2657];
+
 
 % load subjective ratings
 % column1-subj ID, c2-$0, c3-$5,c4-$8,c5-$12,c6-$25,c7-no effect, c8-slight,c9-moderate,c10-major,c11-recovery.
@@ -194,8 +196,8 @@ parfor subj_idx = 1:length(subjects)
         %       fit_ambgiNrisk_model: unconstrained
         %       fit_ambigNrisk_model_Constrained: constrained on alpha and beta
         
-        % Unconstrained fitting
-        [info, p] = fit_ambigNrisk_model(choice, ...
+        % Unconstrained or constrained fitting
+        [info, p] = fit_ambigNrisk_model_Constrained(choice, ...
             fitrefVal', ...
             fitVal', ...
             refProb', ...

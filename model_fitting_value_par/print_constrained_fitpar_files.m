@@ -3,12 +3,12 @@ clearvars
 close all
 
 %% Define conditions
-fitparwave = 'Behavior data fitpar_09300219';
+fitparwave = 'Behavior data fitpar_051420';
 includeAmbig = true;
 model = 'ambigSVPar';
 
 %% Setup
-root = 'D:\Ruonan\Projects in the lab\MDM Project\Medical Decision Making Imaging\MDM_imaging\Behavioral Analysis';
+root = 'E:\Ruonan\Projects in the lab\MDM Project\Medical Decision Making Imaging\MDM_imaging\Behavioral Analysis';
 function_path = fullfile(root,'MDM_Analysis_Scripts','Model fitting script');
 addpath(function_path)
 data_path = fullfile(root, 'PTB Behavior Log/'); % Original log from PTB
