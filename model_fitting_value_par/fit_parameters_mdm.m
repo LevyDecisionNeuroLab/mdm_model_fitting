@@ -7,29 +7,34 @@
 clearvars
 close all
 
-poolobj = parpool('local', 9);
+% poolobj = parpool('local', 8);
 
 %% Define conditions
-fitparwave = 'Behavior data fitpar_052220'; % folder to save all the fitpar data structures
+fitparwave = 'Behavior data fitpar_02022021'; % folder to save all the fitpar data structures
 fitbywhat = 'value'; % what to use as values 'value', 'rating', 'arbitrary'(0,1,2,3,4)
-model = 'ambigSVPar'; % which utility function 'ambigNriskValPar', 'ambigSVPar'
+model = 'ambigOnly'; % which utility function 'ambigNriskValPar', 'ambigSVPar', 'ambigOnly'
 includeAmbig = true;
 search = 'grid'; % 'grid', 'single'
 
 %% set up fitting parameters
 
+% lower and upper bound
 lb_num = 1e-2;
 ub_num = 100;
 
-% lower and upper bound of fitting parameters
-lb = [-100 -10 lb_num lb_num lb_num lb_num];
-ub = [100 10 ub_num ub_num ub_num ub_num];
+if strcmp(model, 'ambigSVPar')
+    lb = [-100 -10 lb_num lb_num lb_num lb_num]; % slope, beta, v1, v2, v3, v4
+    ub = [100 10 ub_num ub_num ub_num ub_num];
+elseif strcmp(model, 'ambigOnly')
+    lb = [-100 -10]; % slope, beta
+    ub = [100 10];        
+end
 
 % value start point
 value_start = 50;
 
 % grid search
-grid_step = 1;
+grid_step = 0.5;
 val_step = 30;
 
 if strcmp(search, 'grid')
@@ -55,7 +60,14 @@ if strcmp(search, 'grid')
     elseif strcmp(model, 'ambigSVPar')
         [b1, b2, b3, b4, b5, b6] = ndgrid(slopeRange, bRange, val1Range(2:end), val2Range(2:end), val3Range(2:end), val4Range(2:end));
         % all posibile combinatinos of parameters
-        b0 = [b1(:) b2(:) b3(:) b4(:) b5(:) b6(:)];
+        b0 = [b1(:) b2(:) b3(:) b4(:) b5(:) b6(:)];% lower and upper bound of fitting parameters
+        lb = [-100 -10 lb_num lb_num lb_num lb_num]; % slope, beta, v1, v2, v3, v4
+        ub = [100 10 ub_num ub_num ub_num ub_num];
+    elseif strcmp(model, 'ambigOnly')
+        [b1, b2] = ndgrid(slopeRange, bRange);
+        b0 = [b1(:) b2(:)];
+        lb = [-100 -10]; % slope, beta
+        ub = [100 10];        
     end
 elseif strcmp(search,'single')
     if strcmp(model,'ambigNriskValPar')
@@ -64,6 +76,8 @@ elseif strcmp(search,'single')
     elseif strcmp(model, 'ambigSVPar')
         % single search
         b0 = [-1 0.5 value_start value_start value_start value_start]; % starting point of the search process, [gamma, beta, val1, val2, val3, val4]
+    elseif strcmp(model, 'ambigOnly')
+        b0 = [-1 0.5];
     end
 end
 
@@ -79,7 +93,7 @@ fixed_prob = 1;   % prb of fixed reward
 %% Set up loading & subject selection
 root = 'E:\Ruonan\Projects in the lab\MDM Project\Medical Decision Making Imaging\MDM_imaging\Behavioral Analysis';
 data_path = fullfile(root, 'PTB Behavior Log/'); % root of folders is sufficient
-rating_filename = fullfile(root, 'Behavior Analysis/MDM_Rating.csv');
+rating_filename = fullfile(root, 'Behavior Analysis/MDM_Rating_for_fitting.csv');
 fitpar_out_path = fullfile(root, 'Behavior fitpar files',fitparwave);
 
 % if folder does not exist, create folder
@@ -98,6 +112,10 @@ subjects = subjects(~ismember(subjects, exclude));
 % subjects = [2073 2582 2587 2597 2651 2663 2665 2666];
 % subjects = [2073 2582 2587 2597 2651 2663 2665 2666 2550 2585 2596 2600 2655 2659 2660 2664];
 
+% load subjective ratings
+% column1-subj ID, c2-$0, c3-$5,c4-$8,c5-$12,c6-$25,c7-no effect, c8-slight,c9-moderate,c10-major,c11-recovery.
+rating = csvread(rating_filename,1,0); %reads data from the file starting at row offset R1 and column offset C1. For example, the offsets R1=0, C1=0 specify the first value in the file.
+
 %% Individual subject fitting
 tic
 
@@ -112,7 +130,25 @@ parfor subj_idx = 1:length(subjects)
     
     % directly use load/save violate transparency, use a function instead 
     Data = load_mat(subjectNum, domain);
-
+    
+  %% Load subjective ratings
+    % prepare subjective rating for each trial
+    if strcmp(domain, 'MON') ==1 % Monetary block
+        subjRefRatings = rating(rating(:,1)==subjectNum,3) * ones(length(Data.choice), 1);
+        %values = Data.vals(include_indices);
+        subjRatings = ones(length(Data.vals),1);
+        for i=1:length(subjRatings)
+            subjRatings(i) = rating(rating(:,1)==subjectNum,1+find(rating(1,2:6)==Data.vals(i)));
+        end
+    else % Medical block
+        subjRefRatings = rating(rating(:,1)==subjectNum,8) * ones(length(Data.choice), 1);
+        %values = Data.vals(include_indices);
+        subjRatings = ones(length(Data.vals),1);
+        for i=1:length(subjRatings)
+            subjRatings(i) = rating(rating(:,1)==subjectNum,6+find(rating(1,7:11)==Data.vals(i)));
+        end
+    end
+    
     %% Refine variables
     
     if includeAmbig
@@ -127,6 +163,9 @@ parfor subj_idx = 1:length(subjects)
     values = Data.vals(include_indices);
     ambigs = Data.ambigs(include_indices);
     probs  = Data.probs(include_indices);
+    ratings = subjRatings(include_indices);
+    refRatings = subjRefRatings(include_indices);
+
     
     % Side with lottery is counterbalanced across subjects 
     % code 0 as reference choice, 1 as lottery choice
@@ -158,10 +197,15 @@ parfor subj_idx = 1:length(subjects)
     choice_prob_5= sum(choice5)/length(choice5);
     
     %% Fitting 
-
-    fitrefVal = fixed_valueP * ones(length(choice), 1);
-    fitVal = values;
-
+  
+    if strcmp(model, 'ambigOnly')
+        fitVal = ratings; % in this model, use ratings as the subjective values into the model
+        fitrefVal = refRatings;
+    else
+        fitrefVal = fixed_valueP * ones(length(choice), 1);
+        fitVal = values;
+    end
+    
     % fit the model
     refProb = fixed_prob  * ones(length(choice), 1);
 
@@ -186,27 +230,42 @@ parfor subj_idx = 1:length(subjects)
 %         base, ...
 %         vals);
     
-    [info, p] = fit_ambigNriskValPar_model(choice, ...
-        fitrefVal', ...
-        fitVal', ...
-        refProb', ...
-        probs', ...
-        ambigs', ...
-        model, ...
-        b0, ...
-        lb,...
-        ub,...
-        base, ...
-        vals);    
-    
-    disp(['Subject ' num2str(subjectNum) ' domain' domain ' constrained fitting completed'])
+    if strcmp(model, 'ambigSVPar')
+        [info, p] = fit_ambigNriskValPar_model(choice, ...
+            fitrefVal', ...
+            fitVal', ...
+            refProb', ...
+            probs', ...
+            ambigs', ...
+            model, ...
+            b0, ...
+            lb,...
+            ub,...
+            base, ...
+            vals);    
+
+        disp(['Subject ' num2str(subjectNum) ' domain' domain ' ambigSVPar fitting completed'])
+    elseif strcmp(model, 'ambigOnly')
+       [info, p] = fit_ambigOnly_model(choice, ...
+            fitrefVal', ...
+            fitVal', ...
+            refProb', ...
+            probs', ...
+            ambigs', ...
+            model, ...
+            b0, ...
+            base);    
+
+        disp(['Subject ' num2str(subjectNum) ' domain' domain ' ambigOnly fitting completed'])
+        
+    end
     
     if strcmp(model, 'ambigNriskValPar')
         slope = info.b(1);
         a = info.b(3);
         b = info.b(2);
         r2 = info.r2;
-    elseif strcmp(model, 'ambigSVPar')
+    elseif strcmp(model, 'ambigSVPar') || strcmp(model, 'ambigOnly')
         slope = info.b(1);
         b = info.b(2);
         r2 = info.r2;      
@@ -215,8 +274,8 @@ parfor subj_idx = 1:length(subjects)
     % choice probability for each trial based on fitted model parameters
     % should not using the model fitting inputs, but rather also
     % include missing response trials. So IMPORTANTLY, use all trials!
-    choiceModeled = choice_prob_ambigNriskValPar(base,fixed_valueP * ones(length(Data.vals), 1)',Data.vals',...
-        fixed_prob  * ones(length(Data.vals), 1)',Data.probs',Data.ambigs',info.b,model,vals);         
+%     choiceModeled = choice_prob_ambigNriskValPar(base,fixed_valueP * ones(length(Data.vals), 1)',Data.vals',...
+%         fixed_prob  * ones(length(Data.vals), 1)',Data.probs',Data.ambigs',info.b,model,vals);         
 
     %% Choice 
     
@@ -348,7 +407,7 @@ parfor subj_idx = 1:length(subjects)
     
     % choices per each trial, 0-ref,1-lottery
     Data.choiceLott = choiceAll;
-    Data.choiceModeled = choiceModeled;
+%     Data.choiceModeled = choiceModeled;
     
     if strcmp(model, 'ambigNriskValPar')
         Data.MLE = info;
@@ -363,6 +422,11 @@ parfor subj_idx = 1:length(subjects)
         Data.gamma = info.b(1);
         Data.val_par = info.b(3:6);
         Data.r2 = info.r2;
+     elseif strcmp(model, 'ambigOnly')
+        Data.MLE = info;
+        Data.beta = info.b(2);
+        Data.gamma = info.b(1);
+        Data.r2 = info.r2;       
     end
     
     % save data struct for the two domains
