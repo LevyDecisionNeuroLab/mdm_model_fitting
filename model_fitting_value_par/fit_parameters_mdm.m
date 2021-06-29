@@ -7,14 +7,15 @@
 clearvars
 close all
 
-% poolobj = parpool('local', 8);
+poolobj = parpool('local', 8);
 
 %% Define conditions
-fitparwave = 'Behavior data fitpar_02022021'; % folder to save all the fitpar data structures
-fitbywhat = 'value'; % what to use as values 'value', 'rating', 'arbitrary'(0,1,2,3,4)
+fitparwave = 'Behavior data fitpar_06292021'; % folder to save all the fitpar data structures
+fitbywhat = 'rating'; % what to use as values 'value', 'rating', 'arbitrary'(0,1,2,3,4)
 model = 'ambigOnly'; % which utility function 'ambigNriskValPar', 'ambigSVPar', 'ambigOnly'
 includeAmbig = true;
 search = 'grid'; % 'grid', 'single'
+optimizer = 'bads';
 
 %% set up fitting parameters
 
@@ -40,9 +41,9 @@ val_step = 30;
 if strcmp(search, 'grid')
     % grid search
     % range of each parameter    
-    slopeRange = -4:grid_step:1;
+    slopeRange = -4:grid_step:-0.01;
     bRange = -2:grid_step:2;
-    aRange = 0:grid_step:4;
+    aRange = 0.01:grid_step:4;
     val1Range = 0:val_step:ub_num;
     val2Range = 0:val_step:ub_num;
     val3Range = 0:val_step:ub_num;
@@ -84,7 +85,7 @@ end
 % all values
 vals = [5,8,12,25];
 
-base = 0; % another parm in the model. Not used.
+base = 0; % assume the SV of null outcome is 0. Need to change if use rating to fit.
 
 fixed_ambig = 0;
 fixed_valueP = 5; % Value of fixed reward
@@ -201,9 +202,20 @@ parfor subj_idx = 1:length(subjects)
     if strcmp(model, 'ambigOnly')
         fitVal = ratings; % in this model, use ratings as the subjective values into the model
         fitrefVal = refRatings;
+        
+        % if using rating to fit, change base into rating of the null
+        % outcome        
+        if strcmp(domain, 'MON') == 1
+            % monetary
+            base = rating(rating(:,1)==subjectNum,2);
+        elseif strcmp(domain, 'MED') == 1
+            % medical
+            base = rating(rating(:,1)==subjectNum,7);
+        end
     else
         fitrefVal = fixed_valueP * ones(length(choice), 1);
         fitVal = values;
+        base = 0;
     end
     
     % fit the model
@@ -254,7 +266,8 @@ parfor subj_idx = 1:length(subjects)
             ambigs', ...
             model, ...
             b0, ...
-            base);    
+            base,...
+            optimizer);    
 
         disp(['Subject ' num2str(subjectNum) ' domain' domain ' ambigOnly fitting completed'])
         
@@ -438,4 +451,4 @@ end
 
 toc 
 
-delete(poolobj)
+% delete(poolobj)
